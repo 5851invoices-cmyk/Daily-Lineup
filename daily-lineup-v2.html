@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Lineup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#08030f;
+    --night:#0d0618;
+    --panel:rgba(20,10,38,.72);
+    --panel-2:rgba(28,14,52,.85);
+    --line:rgba(140,90,255,.18);
+    --ink:#f2ecff;
+    --ink-dim:#a08fc7;
+    --ink-faint:#6b5a93;
+    --volt:#00f0ff;        /* electric cyan */
+    --sodium:#ff6a00;      /* stadium sodium orange */
+    --uv:#a855f7;          /* ultraviolet */
+    --dozen:#ff2d78;
+    --geo:#00f0ff;
+    --grid:#ffc400;
+    --weddle:#3dff8b;
+    --disp:"Bungee",system-ui,sans-serif;
+    --body:"Chakra Petch",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{background:var(--void)}
+  body{
+    font-family:var(--body);color:var(--ink);
+    min-height:100vh;overflow-x:hidden;
+    background:
+      radial-gradient(900px 420px at 50% -160px, rgba(168,85,247,.22), transparent 65%),
+      radial-gradient(700px 300px at 85% 10%, rgba(0,240,255,.08), transparent 60%),
+      radial-gradient(700px 300px at 10% 15%, rgba(255,106,0,.07), transparent 60%),
+      var(--void);
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---- THE FIELD: perspective yard lines scrolling under everything ---- */
+  .field{
+    position:fixed;left:-25%;right:-25%;bottom:-8vh;height:46vh;
+    transform:perspective(560px) rotateX(62deg);
+    transform-origin:50% 100%;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,240,255,.30) 0 2px, transparent 2px 56px),
+      repeating-linear-gradient(90deg, rgba(168,85,247,.16) 0 2px, transparent 2px 90px),
+      linear-gradient(180deg, transparent, rgba(168,85,247,.07));
+    animation:fieldScroll 6s linear infinite;
+    mask-image:linear-gradient(180deg,transparent,black 35%);
+    pointer-events:none;z-index:0;
+  }
+  @keyframes fieldScroll{to{background-position:0 56px,0 0,0 0}}
+  .haze{
+    position:fixed;left:0;right:0;bottom:0;height:34vh;z-index:0;pointer-events:none;
+    background:linear-gradient(180deg,transparent,rgba(8,3,15,.92) 75%);
+  }
+  /* scanline / grain wash */
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
+    background:repeating-linear-gradient(0deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px);
+    mix-blend-mode:overlay;
+  }
+
+  .wrap{position:relative;z-index:2;max-width:880px;margin:0 auto;padding:34px 20px 30vh}
+
+  /* ---- HEADER ---- */
+  .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+  .eyebrow{
+    font-size:11px;letter-spacing:.4em;text-transform:uppercase;font-weight:600;
+    color:var(--volt);text-shadow:0 0 12px rgba(0,240,255,.8);
+    display:flex;align-items:center;gap:10px;
+  }
+  .eyebrow::before{content:"";width:26px;height:2px;background:var(--volt);box-shadow:0 0 10px var(--volt)}
+  h1{
+    font-family:var(--disp);font-size:clamp(34px,8.5vw,62px);line-height:1.02;
+    margin-top:12px;text-transform:uppercase;
+    background:linear-gradient(100deg,var(--volt) 5%,var(--uv) 45%,var(--sodium) 95%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 0 18px rgba(168,85,247,.55)) drop-shadow(0 2px 0 rgba(0,0,0,.6));
+  }
+  .sub{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--ink-dim)}
+  .sub b{color:var(--sodium);text-shadow:0 0 10px rgba(255,106,0,.7)}
+
+  /* ---- MASCOT ---- */
+  .coachbox{position:relative;flex:0 0 auto;text-align:center;margin-top:4px}
+  .coach{
+    width:118px;height:140px;cursor:pointer;border:none;background:none;padding:0;
+    filter:drop-shadow(0 10px 24px rgba(0,0,0,.6));
+    transition:transform .15s;
+  }
+  .coach:hover{transform:scale(1.05)}
+  .coach:active{transform:scale(.95)}
+  .coach:focus-visible{outline:2px solid var(--volt);outline-offset:4px;border-radius:12px}
+  .coach.bounce{animation:coachBounce .5s}
+  @keyframes coachBounce{30%{transform:translateY(-10px) rotate(-4deg)}60%{transform:translateY(0) rotate(3deg)}}
+  .coach-label{font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--ink-faint);margin-top:2px}
+  /* mascot face parts animate by mood class on svg root */
+  .arm{transition:transform .5s cubic-bezier(.34,1.56,.64,1);transform-origin:center}
+  .mood-0 .armL{transform:rotate(40deg) translate(2px,6px)}
+  .mood-0 .armR{transform:rotate(-40deg) translate(-2px,6px)}
+  .mood-4 .armL{transform:rotate(-130deg) translate(-14px,-2px)}
+  .mood-4 .armR{transform:rotate(130deg) translate(14px,-2px)}
+  .mouth,.browL,.browR{transition:d .3s}
+  .bubble{
+    position:absolute;right:104px;top:-6px;width:min(280px,62vw);z-index:6;
+    background:var(--panel-2);border:1px solid var(--line);border-radius:14px 14px 4px 14px;
+    padding:12px 14px;font-size:13.5px;line-height:1.45;color:var(--ink);text-align:left;
+    box-shadow:0 0 0 1px rgba(0,240,255,.12),0 14px 40px rgba(0,0,0,.6),0 0 30px rgba(168,85,247,.18);
+    opacity:0;transform:translateY(8px) scale(.92);transform-origin:bottom right;
+    transition:opacity .18s,transform .18s;pointer-events:none;
+  }
+  .bubble.show{opacity:1;transform:translateY(0) scale(1)}
+  .bubble::after{
+    content:"";position:absolute;right:-9px;bottom:14px;
+    border:9px solid transparent;border-left-color:var(--panel-2);border-bottom:none;
+  }
+  @media (max-width:600px){
+    body{padding:24px 14px 30vh}
+    h1{font-size:clamp(28px,8.5vw,62px)}
+    .topbar{gap:12px}
+    .coachbox{margin-top:2px}
+    .coach{width:80px;height:96px}
+    .coach-label{font-size:9px;letter-spacing:.2em}
+    /* bubble drops BELOW the coach with an upward pointer, clamped on-screen */
+    .bubble{right:0;left:auto;top:calc(100% + 8px);width:min(82vw,300px);
+      border-radius:14px 4px 14px 14px;transform-origin:top right}
+    .bubble::after{right:18px;top:-9px;left:auto;bottom:auto;
+      border:9px solid transparent;border-bottom-color:var(--panel-2);
+      border-left:none;border-top:none}
+    /* fatter thumb targets */
+    .btn{padding:14px 8px;font-size:11.5px}
+    .name{font-size:20px}
+    .sharebtn{flex:1 0 100%;padding:14px 18px}
+    .deck{gap:12px}
+    .modal .row{flex-wrap:wrap}
+    .modal .row input[type=text]{flex:1 0 100%}
+    .modal .row .btn{flex:1 0 100%;padding:14px 18px}
+  }
+
+  /* ---- PROGRESS + SHARE ---- */
+  .deck{margin:26px 0 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .progress{flex:1;min-width:220px}
+  .progress-head{
+    display:flex;justify-content:space-between;font-size:11.5px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ink-dim);margin-bottom:8px;font-weight:600;
+  }
+  .progress-head .count{color:var(--ink)}
+  .bar{height:10px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;border:1px solid var(--line)}
+  .bar > i{
+    display:block;height:100%;width:0;border-radius:99px;
+    background:linear-gradient(90deg,var(--volt),var(--uv),var(--sodium));
+    box-shadow:0 0 14px rgba(0,240,255,.7);
+    transition:width .55s cubic-bezier(.2,.8,.2,1);
+  }
+  .sharebtn{
+    font-family:var(--body);font-weight:700;font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+    color:#031018;background:linear-gradient(135deg,var(--volt),#7df9ff);
+    border:none;border-radius:10px;padding:12px 18px;cursor:pointer;
+    box-shadow:0 0 18px rgba(0,240,255,.45);
+    transition:transform .12s,box-shadow .2s;
+  }
+  .sharebtn:hover{transform:translateY(-2px);box-shadow:0 0 26px rgba(0,240,255,.75)}
+  .sharebtn:active{transform:translateY(0)}
+  .sharebtn.copied{background:linear-gradient(135deg,var(--weddle),#9dffc4);box-shadow:0 0 22px rgba(61,255,139,.6)}
+
+  /* ---- TILES ---- */
+  .lineup{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;perspective:1100px}
+  @media (max-width:600px){.lineup{grid-template-columns:1fr}}
+  .tile{
+    --accent:#fff;
+    position:relative;border-radius:18px;padding:20px 20px 18px;
+    background:var(--panel);border:1px solid var(--line);
+    backdrop-filter:blur(8px);
+    transform-style:preserve-3d;
+    transition:transform .15s ease-out,border-color .25s,box-shadow .25s;
+    min-height:206px;display:flex;flex-direction:column;
+    overflow:hidden;
+  }
+  .tile::before{ /* neon edge sweep */
+    content:"";position:absolute;inset:-1px;border-radius:18px;padding:1px;pointer-events:none;
+    background:conic-gradient(from var(--ang,0deg), transparent 0 70%, var(--accent) 85%, transparent 100%);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;mask-composite:exclude;
+    opacity:0;transition:opacity .3s;
+    animation:spin 3.2s linear infinite;
+  }
+  @property --ang{syntax:'<angle>';initial-value:0deg;inherits:false}
+  @keyframes spin{to{--ang:360deg}}
+  .tile:hover::before{opacity:1}
+  .tile::after{ /* accent glow */
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(380px 150px at 20% -30%,var(--accent),transparent 70%);
+    opacity:.10;transition:opacity .3s;
+  }
+  .tile:hover{box-shadow:0 18px 50px rgba(0,0,0,.55),0 0 34px color-mix(in srgb,var(--accent) 28%,transparent);
+    border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
+  .tile:hover::after{opacity:.22}
+
+  .tile-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .motif{height:44px;display:flex;align-items:center;color:var(--accent);
+    filter:drop-shadow(0 0 8px color-mix(in srgb,var(--accent) 70%,transparent))}
+  .name{
+    font-family:var(--disp);font-size:21px;line-height:1.06;text-transform:uppercase;
+    margin-top:14px;color:var(--ink);cursor:pointer;
+    text-shadow:0 0 14px color-mix(in srgb,var(--accent) 35%,transparent);
+  }
+  .name:hover{color:var(--accent)}
+  .statline{margin-top:7px;font-size:12px;color:var(--ink-dim);letter-spacing:.04em;min-height:16px}
+  .statline b{color:var(--accent)}
+  .tile-actions{margin-top:auto;padding-top:14px;display:flex;gap:8px}
+  .btn{
+    flex:1;font-family:var(--body);font-weight:700;font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+    padding:10px 8px;border-radius:9px;cursor:pointer;border:1px solid var(--line);
+    background:rgba(255,255,255,.04);color:var(--ink-dim);
+    transition:all .15s;
+  }
+  .btn:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 0 12px color-mix(in srgb,var(--accent) 35%,transparent)}
+  .btn.primary{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  .tile.done{border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+  .tile.done .stamp{opacity:1;transform:rotate(-7deg) scale(1)}
+  .stamp{
+    position:absolute;top:14px;right:16px;
+    font-family:var(--disp);font-size:12px;letter-spacing:.16em;color:var(--accent);
+    border:2px solid var(--accent);border-radius:6px;padding:3px 8px;
+    text-shadow:0 0 10px var(--accent);box-shadow:0 0 12px color-mix(in srgb,var(--accent) 45%,transparent),inset 0 0 8px color-mix(in srgb,var(--accent) 25%,transparent);
+    opacity:0;transform:rotate(-7deg) scale(1.4);transition:all .25s cubic-bezier(.34,1.56,.64,1);
+    pointer-events:none;
+  }
+
+  /* ---- LOG MODAL ---- */
+  .overlay{position:fixed;inset:0;background:rgba(4,1,10,.78);backdrop-filter:blur(5px);z-index:60;
+    display:none;align-items:center;justify-content:center;padding:20px}
+  .overlay.show{display:flex}
+  .modal{
+    width:min(460px,100%);background:var(--panel-2);border:1px solid var(--line);border-radius:16px;
+    padding:22px;box-shadow:0 30px 80px rgba(0,0,0,.7),0 0 40px rgba(168,85,247,.2);
+  }
+  .modal h2{font-family:var(--disp);font-size:18px;text-transform:uppercase;color:var(--accent,#fff)}
+  .modal p{font-size:12.5px;color:var(--ink-dim);margin:8px 0 12px;line-height:1.5}
+  .modal textarea{
+    width:100%;min-height:110px;resize:vertical;border-radius:10px;padding:12px;
+    background:rgba(0,0,0,.4);border:1px solid var(--line);color:var(--ink);
+    font-family:var(--body);font-size:13px;
+  }
+  .modal textarea:focus{outline:none;border-color:var(--volt)}
+  .modal .row{display:flex;gap:10px;margin-top:12px;align-items:center}
+  .modal input[type=text]{
+    flex:1;border-radius:10px;padding:11px 12px;background:rgba(0,0,0,.4);
+    border:1px solid var(--line);color:var(--ink);font-family:var(--body);font-size:13px;
+  }
+  .modal input:focus{outline:none;border-color:var(--volt)}
+  .modal .row .btn{flex:0 0 auto;padding:11px 18px}
+  .parsed{font-size:12px;margin-top:10px;color:var(--weddle);min-height:15px}
+  .modal .close{margin-top:14px;width:100%}
+
+  /* ---- TOAST + CONFETTI ---- */
+  .toast{
+    position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(80px);
+    background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
+    border-radius:12px;padding:12px 20px;font-size:13px;z-index:80;
+    box-shadow:0 14px 40px rgba(0,0,0,.6);transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+  }
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  .confetti{position:fixed;top:-12px;width:9px;height:14px;z-index:70;pointer-events:none;
+    animation:fall linear forwards}
+  @keyframes fall{to{transform:translateY(110vh) rotate(720deg);opacity:.9}}
+
+  footer{margin-top:30px;font-size:12px;color:var(--ink-faint);line-height:1.65;
+    border-top:1px solid var(--line);padding-top:16px}
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation:none!important;transition:none!important}
+  }
+</style>
+</head>
+<body>
+<div class="field" aria-hidden="true"></div>
+<div class="haze" aria-hidden="true"></div>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <header>
+      <div class="eyebrow">Daily Lineup</div>
+      <h1>Today's<br>Games</h1>
+      <div class="sub">
+        <span id="date">—</span>
+        <span>🔥 <b id="streakN">0</b>-day streak</span>
+      </div>
+    </header>
+
+    <div class="coachbox">
+      <div class="bubble" id="bubble"></div>
+      <button class="coach" id="coach" aria-label="Poke the coach">
+        <svg id="coachSvg" class="mood-0" viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg">
+          <!-- arms -->
+          <g class="arm armL"><rect x="14" y="76" width="14" height="38" rx="7" fill="#a855f7"/><circle cx="21" cy="116" r="9" fill="#f5c89a"/></g>
+          <g class="arm armR"><rect x="92" y="76" width="14" height="38" rx="7" fill="#a855f7"/><circle cx="99" cy="116" r="9" fill="#f5c89a"/></g>
+          <!-- body / jersey -->
+          <path d="M30 80 Q30 68 44 66 L76 66 Q90 68 90 80 L90 122 Q90 132 78 132 L42 132 Q30 132 30 122 Z" fill="#a855f7"/>
+          <path d="M30 80 Q30 68 44 66 L76 66 Q90 68 90 80 L90 86 L30 86 Z" fill="#8b3df0"/>
+          <text x="60" y="116" text-anchor="middle" font-family="Bungee" font-size="26" fill="#08030f">0</text>
+          <!-- shoulder pads -->
+          <ellipse cx="36" cy="72" rx="13" ry="9" fill="#7c2fe0"/>
+          <ellipse cx="84" cy="72" rx="13" ry="9" fill="#7c2fe0"/>
+          <!-- head -->
+          <circle cx="60" cy="38" r="26" fill="#f5c89a"/>
+          <!-- helmet -->
+          <path d="M34 40 A26 26 0 0 1 86 40 L86 30 A26 26 0 0 0 34 30 Z" fill="#00f0ff"/>
+          <path d="M33 24 A27 27 0 0 1 87 24 L87 40 L80 40 L80 28 A20 20 0 0 0 40 28 L40 40 L33 40 Z" fill="#00f0ff"/>
+          <circle cx="60" cy="36" r="26" fill="none" stroke="#00f0ff" stroke-width="5" stroke-dasharray="52 200" stroke-dashoffset="-13"/>
+          <rect x="55" y="8" width="10" height="32" rx="5" fill="#ff6a00"/>
+          <!-- facemask -->
+          <path d="M34 46 L86 46 M38 54 L82 54" stroke="#dfe9ff" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <!-- brows -->
+          <path class="browL" id="browL" d="M44 26 L56 30" stroke="#3a2410" stroke-width="3.5" stroke-linecap="round"/>
+          <path class="browR" id="browR" d="M76 26 L64 30" stroke="#3a2410" stroke-width="3.5" stroke-linecap="round"/>
+          <!-- eyes -->
+          <circle cx="50" cy="36" r="3.4" fill="#1b1026"/>
+          <circle cx="70" cy="36" r="3.4" fill="#1b1026"/>
+          <!-- mouth (morphs) -->
+          <path class="mouth" id="mouth" d="M50 50 Q60 44 70 50" stroke="#1b1026" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+        </svg>
+      </button>
+      <div class="coach-label" id="coachLabel">Coach is furious</div>
+    </div>
+  </div>
+
+  <div class="deck">
+    <div class="progress">
+      <div class="progress-head">
+        <span>Played today</span>
+        <span class="count"><span id="doneN">0</span> / 4</span>
+      </div>
+      <div class="bar"><i id="barFill"></i></div>
+    </div>
+    <button class="sharebtn" id="shareBtn">Copy squad card</button>
+  </div>
+
+  <div class="lineup" id="lineup">
+
+    <div class="tile" data-id="dozen" data-name="Daily Dozen" data-emoji="🔴" data-url="https://dailydozentrivia.com/" style="--accent:var(--dozen)">
+      <span class="stamp">Played</span>
+      <div class="tile-top">
+        <div class="motif" aria-hidden="true">
+          <svg width="64" height="40" viewBox="0 0 70 44" fill="currentColor">
+            <circle cx="8" cy="8" r="4"/><circle cx="24" cy="8" r="4"/><circle cx="40" cy="8" r="4"/><circle cx="56" cy="8" r="4"/>
+            <circle cx="8" cy="22" r="4"/><circle cx="24" cy="22" r="4"/><circle cx="40" cy="22" r="4"/><circle cx="56" cy="22" r="4"/>
+            <circle cx="8" cy="36" r="4"/><circle cx="24" cy="36" r="4"/><circle cx="40" cy="36" r="4"/><circle cx="56" cy="36" r="4"/>
+          </svg>
+        </div>
+      </div>
+      <div class="name" role="link" tabindex="0">Daily Dozen</div>
+      <div class="statline" data-stat>12 trivia Qs · no result logged</div>
+      <div class="tile-actions">
+        <button class="btn primary" data-play>Play ↗</button>
+        <button class="btn" data-log>Log result</button>
+      </div>
+    </div>
+
+    <div class="tile" data-id="geo" data-name="GeoSports" data-emoji="🌍" data-url="https://geosports.app/" style="--accent:var(--geo)">
+      <span class="stamp">Played</span>
+      <div class="tile-top">
+        <div class="motif" aria-hidden="true">
+          <svg width="42" height="42" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="24" cy="22" r="15"/><ellipse cx="24" cy="22" rx="6" ry="15"/>
+            <path d="M9 22h30M11 14h26M11 30h26"/><circle cx="24" cy="22" r="3" fill="currentColor" stroke="none"/>
+          </svg>
+        </div>
+      </div>
+      <div class="name" role="link" tabindex="0">GeoSports</div>
+      <div class="statline" data-stat>tap the globe · no result logged</div>
+      <div class="tile-actions">
+        <button class="btn primary" data-play>Play ↗</button>
+        <button class="btn" data-log>Log result</button>
+      </div>
+    </div>
+
+    <div class="tile" data-id="grid" data-name="Immaculate Grid" data-emoji="🟨" data-url="https://www.immaculategrid.com/football" style="--accent:var(--grid)">
+      <span class="stamp">Played</span>
+      <div class="tile-top">
+        <div class="motif" aria-hidden="true">
+          <svg width="40" height="40" viewBox="0 0 46 46" fill="none" stroke="currentColor" stroke-width="2.2">
+            <rect x="3" y="3" width="40" height="40" rx="3"/>
+            <path d="M16.3 3v40M29.6 3v40M3 16.3h40M3 29.6h40"/>
+          </svg>
+        </div>
+      </div>
+      <div class="name" role="link" tabindex="0">Immaculate Grid</div>
+      <div class="statline" data-stat>3×3 NFL grid · no result logged</div>
+      <div class="tile-actions">
+        <button class="btn primary" data-play>Play ↗</button>
+        <button class="btn" data-log>Log result</button>
+      </div>
+    </div>
+
+    <div class="tile" data-id="weddle" data-name="Weddle" data-emoji="🟩" data-url="https://www.weddlegame.com/" style="--accent:var(--weddle)">
+      <span class="stamp">Played</span>
+      <div class="tile-top">
+        <div class="motif" aria-hidden="true">
+          <svg width="64" height="26" viewBox="0 0 70 30" fill="none">
+            <rect x="1" y="1" width="20" height="20" rx="3" fill="#3dff8b" opacity=".9"/>
+            <rect x="25" y="1" width="20" height="20" rx="3" fill="#ffc400" opacity=".85"/>
+            <rect x="49" y="1" width="20" height="20" rx="3" stroke="currentColor" stroke-width="2"/>
+          </svg>
+        </div>
+      </div>
+      <div class="name" role="link" tabindex="0">Weddle</div>
+      <div class="statline" data-stat>guess the NFL player · no result logged</div>
+      <div class="tile-actions">
+        <button class="btn primary" data-play>Play ↗</button>
+        <button class="btn" data-log>Log result</button>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    Play opens the game in a new tab. When you finish, hit <b>Log result</b> and paste the game's share text — the score gets pulled out automatically (or punch it in by hand). <b>Copy squad card</b> builds one combined scoreboard for the iMessage thread. Progress saves on this device and resets daily.
+  </footer>
+</div>
+
+<!-- LOG MODAL -->
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal">
+    <h2 id="modalTitle">Log result</h2>
+    <p>Paste the share text from the game (hit its Share button, then paste here). I'll grab the score. Or type it manually below.</p>
+    <textarea id="pasteBox" placeholder="Paste share text…"></textarea>
+    <div class="parsed" id="parsedMsg"></div>
+    <div class="row">
+      <input type="text" id="manualScore" placeholder="Manual score (e.g. 6/9, 870, 4/8)">
+      <button class="btn primary" id="saveResult">Save</button>
+    </div>
+    <button class="btn close" id="closeModal">Close</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  /* ---------------- DATA ---------------- */
+  const GAMES = ['dozen','geo','grid','weddle'];
+  const tiles = {};
+  document.querySelectorAll('.tile').forEach(t=>tiles[t.dataset.id]=t);
+
+  const INSULTS = [
+    "You couldn't name a tight end if one sacked you.",
+    "Your ball knowledge is strictly decorative.",
+    "You think a flea flicker is a hygiene problem.",
+    "Encyclopedia of sports? You're a pamphlet.",
+    "You'd lose trivia to the stadium hot dog.",
+    "Your takes belong in the lost and found.",
+    "You watch RedZone like it's subtitled.",
+    "You couldn't spot a blitz with binoculars.",
+    "Your draft board is a cry for help.",
+    "You think nickel defense costs five cents.",
+    "Your fantasy team is a federally recognized disaster.",
+    "You benched a 30-point guy. Again.",
+    "Your waiver moves keep economists up at night.",
+    "Autodraft has carried you for years and you know it.",
+    "Your league only keeps you around for the entry fee.",
+    "You trade like you've got a problem and no phone signal.",
+    "Your keeper league should've kept someone else.",
+    "You start players on bye. Weekly.",
+    "Your lineup decisions violate the Geneva Convention.",
+    "The commissioner keeps you as a charity case.",
+    "You run a 40 in geological time.",
+    "Your vertical is a rounding error.",
+    "You'd pull a hamstring playing Madden.",
+    "Cardio called. It's filing a restraining order.",
+    "You get winded shuffling the play card.",
+    "Your combine results would be redacted.",
+    "You couldn't juke a parked car.",
+    "Two-hand touch would put you on IR.",
+    "Your spiral looks like a dying pigeon.",
+    "You'd false start in a board game.",
+    "That grid score was a crime against football.",
+    "You guessed a retired punter. Twice.",
+    "Your rarity score has a vanity problem.",
+    "Even the hint button gave up on you.",
+    "You tapped Greenland for a Texas question.",
+    "Your globe game says you failed geography AND gym.",
+    "Eight guesses and you still picked a kicker.",
+    "The daily puzzle is pressing charges.",
+    "You play on easy mode in your soul.",
+    "Your streak died of embarrassment.",
+    "The couch has your silhouette on permanent file.",
+    "Your recliner lists you as a dependent.",
+    "You've got the body of an athlete. A retired darts athlete.",
+    "Halftime is your peak athletic event.",
+    "Your warm-up routine is opening the chip bag.",
+    "You sweat reaching for the remote.",
+    "Game day prep: stretching your waistband.",
+    "Your hydration plan is whatever's in the cup holder.",
+    "You tore your ACL standing up for a replay.",
+    "Your gameday fit is pajamas with team spirit.",
+    "You bring nothing to the tailgate. Literally. Every time.",
+    "Your hot takes are room temperature.",
+    "You're the human version of a delay of game.",
+    "Refs throw flags when you walk in.",
+    "You're a turnover with shoes on.",
+    "Your opinion got waived. Unclaimed.",
+    "You're on the practice squad of life.",
+    "Even your shadow plays better defense.",
+    "You're a false start with a pulse.",
+    "Vegas has odds on your incompetence. They're good.",
+    "Your playbook is a coloring book.",
+    "You audible into worse decisions.",
+    "You somehow fumble standing still.",
+    "Your football IQ tested negative.",
+    "You'd ice your own kicker.",
+    "You call timeout to think and still get it wrong.",
+    "Your two-minute drill takes an hour.",
+    "You'd take a knee in someone else's game.",
+    "Punting on 2nd down energy. That's you.",
+    "You challenge plays you weren't even watching.",
+    "Your trash talk needs a ghostwriter.",
+    "You chirp like a bird with a flip phone.",
+    "All bark, no blitz.",
+    "You talk like a champion and play like a bye week.",
+    "Your smack talk gets intercepted too.",
+    "You couldn't roast a marshmallow.",
+    "Loud wrong is still wrong, champ.",
+    "Your confidence is writing checks your trivia can't cash.",
+    "The mute button was invented for guys like you.",
+    "You're the group chat's comic relief. Not on purpose.",
+    "Your bracket dies in round one. Annually.",
+    "You bet the over on your own intelligence and lost.",
+    "Parlay? You can't even hit a single.",
+    "Your lock of the week needs a locksmith.",
+    "You fade yourself and still lose.",
+    "Your gut feeling has a losing record.",
+    "Survivor pool? You drowned week one.",
+    "You bet with your heart. Your heart is bad at this.",
+    "The sportsbook sends you a fruit basket every year.",
+    "You'd lose a coin flip best of seven.",
+    "You think a hard count is math homework.",
+    "You think play action is a movie genre.",
+    "You think the pocket is where snacks go.",
+    "You think a safety is childproofing.",
+    "You think zone coverage is sunscreen.",
+    "You think the red zone is a parking violation.",
+    "You think a screen pass is sharing your phone.",
+    "You think shotgun means front seat.",
+    "You think a pick six is lottery numbers.",
+    "You think a hail mary is just brunch.",
+    "Your guesses age like milk in a sauna.",
+    "You're 0-for-today and it's not even lunch.",
+    "The answer key wants a restraining order.",
+    "You've been mathematically eliminated from respect.",
+    "Your win probability flatlined at kickoff.",
+    "You're losing to the bots. The dumb ones.",
+    "Your average score needs witness protection.",
+    "The leaderboard files you under thoughts and prayers.",
+    "Your stats page should come with a warning label.",
+    "Participation trophy seems generous.",
+    "You couldn't find Ohio with both hands and a map of Ohio.",
+    "You tapped the ocean. For a stadium question.",
+    "Geography called. It wants a divorce.",
+    "You put the Super Bowl in Switzerland.",
+    "Your sense of direction needs a GPS for the GPS.",
+    "You'd get lost in a huddle.",
+    "You located Lambeau in the Pacific. Twice.",
+    "Columbus found America faster than you find Columbus.",
+    "Your map game is pre-1492.",
+    "You think the AFC East is in Europe.",
+    "Your jersey is the only thing on you that's seen a stadium.",
+    "You eat like training camp is for bears.",
+    "Your forty time is measured in business days.",
+    "You'd lose a footrace to a mascot in a foam suit.",
+    "Stairs put you in concussion protocol.",
+    "Your gym membership is a donation.",
+    "You flex and nothing happens.",
+    "Your six pack is in the fridge.",
+    "You'd tap out of a thumb war.",
+    "Your max bench is the bench.",
+    "Your guess history reads like a ransom note.",
+    "You typed a baseball player. In the football grid.",
+    "You answered Tom Brady for everything. Still went 2/9.",
+    "You burned every guess on one square. Bold. Stupid, but bold.",
+    "The puzzle was free. Your performance cost everyone.",
+    "You got the easy square wrong. The EASY one.",
+    "The grid asked for any kicker. You blanked. ANY kicker.",
+    "You named a coach. It wanted players. Classic you.",
+    "Your 9/9 dreams woke up screaming.",
+    "Immaculate? Yours was immaculately bad.",
+    "Quit while you're behind. It's your best play.",
+    "You peaked in warmups.",
+    "Your highlight reel is a loading screen.",
+    "They don't make a stat for whatever that was.",
+    "Scouting reports can't measure heart. Or anything else you have.",
+    "Your ceiling is someone's basement floor.",
+    "You're a healthy scratch from greatness.",
+    "Your potential filed for unemployment.",
+    "You're day-to-day with chronic mediocrity.",
+    "Listed as questionable. For everything. Forever.",
+    "Your group chat reactions carry your whole personality.",
+    "You screenshot your one good score from 2023. We know.",
+    "You only share results on your good days. So, monthly.",
+    "You crop your stats like they're crime scene photos.",
+    "Your share card needs a content warning.",
+    "You brag about beating your mom. She started yesterday.",
+    "You hit remind-me-later on greatness.",
+    "Even autocorrect won't fix your answers.",
+    "Your phone dies on purpose to avoid your gameplay.",
+    "Siri pretends not to hear you.",
+    "You'd fumble a handoff from yourself.",
+    "You'd drop a pass in a dream.",
+    "Butterfingers called you a liability.",
+    "You couldn't catch a cold in a flu ward.",
+    "Velcro gloves and you'd still drop it.",
+    "You'd whiff on a kickoff. A KICKOFF.",
+    "You'd miss a chip shot from the one.",
+    "Wide left. Wide right. Somehow both.",
+    "You shanked the extra point of life.",
+    "Doink is your spirit sound.",
+    "Your morning routine is losing.",
+    "You set an alarm to disappoint earlier.",
+    "Breakfast of champions? You had the cereal of cowards.",
+    "You stretch before sitting down.",
+    "Your daily double is two Ls.",
+    "Today's forecast: 100% chance of you blowing it.",
+    "You woke up and chose mediocrity. Streak intact.",
+    "Consistency! You're reliably terrible.",
+    "Your only streak is this losing one.",
+    "At least you show up. That's the whole compliment.",
+    "Your brain runs a prevent defense against thinking.",
+    "Thoughts and prayers to your next guess.",
+    "Your instincts have instincts. Both wrong.",
+    "You overthink the easy ones and underthink the hard ones. Talent.",
+    "Your process is a crime scene.",
+    "You read the clue. Then ignored it. Visionary.",
+    "Your logic took the scenic route to wrong.",
+    "You connected the dots into a stick figure of failure.",
+    "Galaxy brain, asteroid results.",
+    "Your gut and your brain are both on bye.",
+    "Keep clicking me. It's the most exercise you'll get today.",
+    "Poking me won't fix your score, chief.",
+    "I'm the only one on this page performing.",
+    "Touch the games, not the mascot.",
+    "You done? The puzzles miss you. Wait, no they don't.",
+    "Click me again and I'm calling a personal foul.",
+    "I've seen better fingers on a foam hand.",
+    "This is harassment. Entertaining, but harassment.",
+    "Go play. I'll be here, judging.",
+    "Four games. FOUR. Get moving."
+  ];
+  const HAPPY = [
+    "Fine. FINE. You played all four. Don't let it go to your head.",
+    "A clean sweep?? Who are you and what did you do with the couch goblin?",
+    "4 for 4. I'm not crying, it's sweat. Mascots sweat.",
+    "Okay, that was almost impressive. Almost.",
+    "All four games?! Someone check the simulation.",
+    "You did it. The bar was on the floor, but you did it.",
+    "Look at you, functioning. Tomorrow we run it back.",
+    "Full lineup! First round of Gatorade's on me.",
+    "Perfect attendance. Your one elite skill.",
+    "I'd high-five you but I've seen your catch rate."
+  ];
+
+  /* ---------------- STORAGE ---------------- */
+  const mem = {};
+  const Store = {
+    async get(k){
+      try{ const r = await window.storage.get(k); return r?JSON.parse(r.value):null; }
+      catch(e){
+        try{ const v = localStorage.getItem(k); return v?JSON.parse(v):null; }
+        catch(e2){ return (k in mem)?mem[k]:null; }
+      }
+    },
+    async set(k,v){
+      mem[k]=v;
+      try{ await window.storage.set(k,JSON.stringify(v)); return; }catch(e){}
+      try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){}
+    }
+  };
+  const dkey = d => d.toLocaleDateString('en-CA');
+  const today = () => dkey(new Date());
+  const yesterday = () => { const d=new Date(); d.setDate(d.getDate()-1); return dkey(d); };
+
+  let state = { results:{}, meta:{last:null,streak:0} }; // results[date][gameId] = {score, raw}
+
+  /* ---------------- HELPERS ---------------- */
+  const $ = id => document.getElementById(id);
+  function toast(msg){
+    const t=$('toast'); t.textContent=msg; t.classList.add('show');
+    clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2400);
+  }
+  function todayResults(){ return state.results[today()] || {}; }
+  function doneCount(){ return GAMES.filter(g=>todayResults()[g]).length; }
+
+  function gameStreak(id){
+    let n=0; const d=new Date();
+    if(!(state.results[dkey(d)]||{})[id]) d.setDate(d.getDate()-1); // allow counting up to yesterday if not played yet today
+    while((state.results[dkey(d)]||{})[id]){ n++; d.setDate(d.getDate()-1); }
+    return n;
+  }
+
+  /* ---------------- PARSERS ---------------- */
+  function parseShare(id, text){
+    const t = text.trim();
+    if(!t) return null;
+    if(id==='weddle'){
+      const m = t.match(/([1-8X])\s*\/\s*8/i);
+      if(m) return m[1].toUpperCase()+'/8';
+      const rows = (t.match(/[🟩🟨⬛⬜🟥]/gu)||[]).length;
+      if(rows) return 'grid logged';
+    }
+    if(id==='grid'){
+      const m = t.match(/([0-9])\s*\/\s*9/);
+      const r = t.match(/rarity[^0-9]{0,8}([0-9]{1,4})/i);
+      if(m) return m[1]+'/9'+(r?(' · rarity '+r[1]):'');
+      if(r) return 'rarity '+r[1];
+    }
+    if(id==='geo'){
+      const m = t.match(/([0-9]{2,4})\s*\/\s*1000/) || t.match(/([0-9]{2,4})\s*(?:pts|points)/i);
+      if(m) return m[1]+'/1000';
+      const nums = (t.match(/\b\d{2,4}\b/g)||[]).map(Number).filter(n=>n<=1000);
+      if(nums.length) return Math.max(...nums)+'/1000';
+    }
+    if(id==='dozen'){
+      const m = t.match(/(\d{1,2})\s*\/\s*12/);
+      if(m) return m[1]+'/12';
+      const p = t.match(/(\d{1,4})\s*(?:pts|points)/i);
+      if(p) return p[1]+' pts';
+    }
+    // last resort: any score-looking fragment
+    const any = t.match(/(\d{1,4}\s*\/\s*\d{1,4})/);
+    return any ? any[1].replace(/\s+/g,'') : null;
+  }
+
+  /* ---------------- MASCOT ---------------- */
+  const MOODS = [
+    {label:'Coach is furious',  mouth:'M50 52 Q60 44 70 52', bl:'M44 26 L56 31', br:'M76 26 L64 31'},
+    {label:'Coach is grumpy',   mouth:'M50 51 Q60 47 70 51', bl:'M44 27 L56 30', br:'M76 27 L64 30'},
+    {label:'Coach is thawing',  mouth:'M50 50 L70 50',       bl:'M45 28 L55 28', br:'M75 28 L65 28'},
+    {label:'Coach is into it',  mouth:'M50 48 Q60 54 70 48', bl:'M45 27 L55 26', br:'M75 27 L65 26'},
+    {label:'COACH IS HYPED',    mouth:'M48 46 Q60 58 72 46', bl:'M44 25 L56 24', br:'M76 25 L64 24'}
+  ];
+  function setMood(){
+    const n = doneCount();
+    const svg = $('coachSvg');
+    svg.setAttribute('class','mood-'+n);
+    $('mouth').setAttribute('d',MOODS[n].mouth);
+    $('browL').setAttribute('d',MOODS[n].bl);
+    $('browR').setAttribute('d',MOODS[n].br);
+    $('coachLabel').textContent = MOODS[n].label;
+    svg.querySelector('text').textContent = n===4 ? '💯' : String(n);
+  }
+  let bubbleTimer=null;
+  function coachSpeak(){
+    const pool = doneCount()===4 && Math.random()<0.5 ? HAPPY : INSULTS;
+    const line = pool[Math.floor(Math.random()*pool.length)];
+    const b=$('bubble'); b.textContent=line; b.classList.add('show');
+    $('coach').classList.remove('bounce'); void $('coach').offsetWidth; $('coach').classList.add('bounce');
+    clearTimeout(bubbleTimer);
+    bubbleTimer=setTimeout(()=>b.classList.remove('show'), 4200);
+  }
+
+  /* ---------------- RENDER ---------------- */
+  function render(){
+    const res = todayResults();
+    let n=0;
+    GAMES.forEach(id=>{
+      const t=tiles[id], r=res[id];
+      t.classList.toggle('done', !!r);
+      const st = t.querySelector('[data-stat]');
+      const stk = gameStreak(id);
+      if(r){ n++;
+        st.innerHTML = 'Today: <b>'+r.score+'</b>'+(stk>1?' · '+stk+'-day streak':'');
+      } else {
+        st.innerHTML = stk>0 ? (stk+'-day streak on the line') : st.dataset.base || st.textContent;
+        if(!st.dataset.base) st.dataset.base = st.textContent;
+      }
+    });
+    $('doneN').textContent=n;
+    $('barFill').style.width=(n/4*100)+'%';
+    $('streakN').textContent = (state.meta.last===today()||state.meta.last===yesterday()) ? state.meta.streak : 0;
+    setMood();
+  }
+
+  function confetti(){
+    const colors=['#00f0ff','#ff2d78','#ffc400','#3dff8b','#a855f7','#ff6a00'];
+    for(let i=0;i<90;i++){
+      const c=document.createElement('div'); c.className='confetti';
+      c.style.left=Math.random()*100+'vw';
+      c.style.background=colors[i%colors.length];
+      c.style.animationDuration=(2+Math.random()*2.2)+'s';
+      c.style.animationDelay=(Math.random()*0.7)+'s';
+      c.style.transform='rotate('+Math.random()*360+'deg)';
+      document.body.appendChild(c);
+      setTimeout(()=>c.remove(),5200);
+    }
+  }
+
+  async function persist(){ 
+    await Store.set('lineup:v2', state);
+  }
+
+  async function logResult(id, score, raw){
+    const day=today();
+    state.results[day]=state.results[day]||{};
+    const had = doneCount();
+    state.results[day][id]={score:score, raw:(raw||'').slice(0,500)};
+    if(doneCount()===4 && state.meta.last!==day){
+      state.meta.streak = (state.meta.last===yesterday()) ? state.meta.streak+1 : 1;
+      state.meta.last = day;
+      confetti();
+      setTimeout(coachSpeak, 600);
+    }
+    await persist();
+    render();
+    if(had<doneCount() && doneCount()<4 && Math.random()<0.45) setTimeout(coachSpeak,500);
+  }
+
+  /* ---------------- SHARE CARD ---------------- */
+  const EMOJI={dozen:'🔴',geo:'🌍',grid:'🟨',weddle:'🟩'};
+  const NAME={dozen:'Dozen',geo:'GeoSports',grid:'Grid',weddle:'Weddle'};
+  function buildCard(){
+    const res=todayResults();
+    const d=new Date().toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'});
+    let lines=['🏟️ DAILY LINEUP — '+d];
+    GAMES.forEach(id=>{
+      lines.push(EMOJI[id]+' '+NAME[id]+' · '+(res[id]?res[id].score:'—'));
+    });
+    const n=doneCount();
+    const stk=(state.meta.last===today()||state.meta.last===yesterday())?state.meta.streak:0;
+    lines.push('✅ '+n+'/4'+(stk>0?' · 🔥 '+stk+'-day streak':''));
+    return lines.join('\n');
+  }
+  async function copyCard(){
+    const txt=buildCard();
+    let ok=false;
+    try{ await navigator.clipboard.writeText(txt); ok=true; }
+    catch(e){
+      const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta);
+      ta.select(); try{ ok=document.execCommand('copy'); }catch(e2){} ta.remove();
+    }
+    const b=$('shareBtn');
+    if(ok){ b.textContent='Copied — paste it in iMessage'; b.classList.add('copied');
+      setTimeout(()=>{b.textContent='Copy squad card';b.classList.remove('copied');},2600);
+    } else { toast('Copy blocked — here it is:\n'+txt); }
+  }
+
+  /* ---------------- MODAL ---------------- */
+  let modalGame=null;
+  function openModal(id){
+    modalGame=id;
+    const t=tiles[id];
+    $('modal').style.setProperty('--accent',getComputedStyle(t).getPropertyValue('--accent'));
+    $('modalTitle').textContent='Log '+t.dataset.name;
+    $('pasteBox').value=''; $('manualScore').value=''; $('parsedMsg').textContent='';
+    $('overlay').classList.add('show');
+    $('pasteBox').focus();
+  }
+  function closeModal(){ $('overlay').classList.remove('show'); modalGame=null; }
+
+  $('pasteBox').addEventListener('input',()=>{
+    const s=parseShare(modalGame,$('pasteBox').value);
+    $('parsedMsg').textContent = s ? ('✓ Got it: '+s) : ($('pasteBox').value.trim()?'Hmm, can\u2019t read that — enter the score manually below.':'');
+    if(s) $('manualScore').value=s;
+  });
+  $('saveResult').addEventListener('click',()=>{
+    const manual=$('manualScore').value.trim();
+    const parsed=parseShare(modalGame,$('pasteBox').value);
+    const score=manual||parsed;
+    if(!score){ $('parsedMsg').textContent='Need a score — paste share text or type one.'; return; }
+    logResult(modalGame,score,$('pasteBox').value);
+    closeModal();
+    toast(tiles[modalGame].dataset.name+' logged: '+score);
+  });
+  $('closeModal').addEventListener('click',closeModal);
+  $('overlay').addEventListener('click',e=>{ if(e.target===$('overlay')) closeModal(); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+
+  /* ---------------- WIRING ---------------- */
+  Object.values(tiles).forEach(t=>{
+    const url=t.dataset.url,id=t.dataset.id;
+    t.querySelector('[data-play]').addEventListener('click',()=>window.open(url,'_blank','noopener'));
+    const nm=t.querySelector('.name');
+    nm.addEventListener('click',()=>window.open(url,'_blank','noopener'));
+    nm.addEventListener('keydown',e=>{if(e.key==='Enter'){window.open(url,'_blank','noopener');}});
+    t.querySelector('[data-log]').addEventListener('click',()=>openModal(id));
+
+    /* 3D tilt */
+    t.addEventListener('mousemove',e=>{
+      if(matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const r=t.getBoundingClientRect();
+      const x=(e.clientX-r.left)/r.width-.5, y=(e.clientY-r.top)/r.height-.5;
+      t.style.transform='rotateY('+(x*7)+'deg) rotateX('+(-y*7)+'deg) translateZ(4px)';
+    });
+    t.addEventListener('mouseleave',()=>{ t.style.transform=''; });
+  });
+  $('coach').addEventListener('click',coachSpeak);
+  $('shareBtn').addEventListener('click',copyCard);
+
+  $('date').textContent=new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+
+  /* ---------------- INIT ---------------- */
+  (async function(){
+    const saved=await Store.get('lineup:v2');
+    if(saved && saved.results){ state=saved; }
+    render();
+  })();
+})();
+</script>
+</body>
+</html>
